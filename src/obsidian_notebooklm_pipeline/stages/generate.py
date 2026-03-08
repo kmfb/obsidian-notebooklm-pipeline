@@ -22,6 +22,7 @@ def run_generate(work_dir: Path, recipes_path: Path | None = None) -> Generation
         corpus_id=source_map.corpus_id,
         recipes=recipes,
         source_map_path=str(work_dir / "source_map.json"),
+        recipes_path=str(recipes_path) if recipes_path else None,
         unsynced_segment_ids=unsynced_segment_ids,
     )
     write_json(work_dir / "generation_request.json", generation_request.to_dict())

@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Literal
 
 ArtifactKind = Literal["slides", "audio", "report"]
+PackSelectionMode = Literal["scan", "reading_map"]
 SyncStatus = Literal["pending", "synced"]
 PublishStatus = Literal["missing", "published"]
 
@@ -14,6 +15,7 @@ class Segment:
     title: str
     source_path: str
     text: str
+    text_digest: str
     order: int
     tags: tuple[str, ...] = ()
 
@@ -25,12 +27,16 @@ class Segment:
 class SourcePack:
     corpus_id: str
     generated_at: str
+    selection_mode: PackSelectionMode
+    reading_map_path: str | None
     segments: list[Segment]
 
     def to_dict(self) -> dict:
         return {
             "corpus_id": self.corpus_id,
             "generated_at": self.generated_at,
+            "selection_mode": self.selection_mode,
+            "reading_map_path": self.reading_map_path,
             "segments": [segment.to_dict() for segment in self.segments],
         }
 
@@ -39,6 +45,8 @@ class SourcePack:
         return cls(
             corpus_id=data["corpus_id"],
             generated_at=data["generated_at"],
+            selection_mode=data["selection_mode"],
+            reading_map_path=data.get("reading_map_path"),
             segments=[Segment(**segment) for segment in data["segments"]],
         )
 
@@ -46,8 +54,12 @@ class SourcePack:
 @dataclass
 class SourceMapEntry:
     segment_id: str
+    source_path: str
+    title: str
+    text_digest: str
     notebooklm_source_id: str | None
     sync_status: SyncStatus
+    synced_at: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -100,6 +112,7 @@ class GenerationRequest:
     corpus_id: str
     recipes: list[Recipe]
     source_map_path: str
+    recipes_path: str | None = None
     unsynced_segment_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -109,8 +122,21 @@ class GenerationRequest:
             "corpus_id": self.corpus_id,
             "recipes": [recipe.to_dict() for recipe in self.recipes],
             "source_map_path": self.source_map_path,
+            "recipes_path": self.recipes_path,
             "unsynced_segment_ids": list(self.unsynced_segment_ids),
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "GenerationRequest":
+        return cls(
+            run_id=data["run_id"],
+            created_at=data["created_at"],
+            corpus_id=data["corpus_id"],
+            recipes=[Recipe.from_dict(recipe) for recipe in data["recipes"]],
+            source_map_path=data["source_map_path"],
+            recipes_path=data.get("recipes_path"),
+            unsynced_segment_ids=list(data.get("unsynced_segment_ids", [])),
+        )
 
 
 @dataclass

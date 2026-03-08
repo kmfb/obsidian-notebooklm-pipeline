@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 from ..io import ensure_dir, read_json, write_json
-from ..models import GenerationRequest, PublishedArtifact, Recipe
+from ..models import GenerationRequest, PublishedArtifact
 from ..recipes import expected_artifact_name
 
 
@@ -17,11 +17,10 @@ def run_publish(
     downloads_dir = downloads_dir or (work_dir / "downloads")
     output_dir = output_dir or (work_dir / "outputs")
 
-    request = GenerationRequest(**read_json(work_dir / "generation_request.json"))
-    recipes = [Recipe.from_dict(recipe) for recipe in request.recipes]
+    request = GenerationRequest.from_dict(read_json(work_dir / "generation_request.json"))
     published: list[PublishedArtifact] = []
 
-    for recipe in recipes:
+    for recipe in request.recipes:
         source_path = downloads_dir / expected_artifact_name(recipe)
         destination_dir = ensure_dir(output_dir / recipe.artifact_kind)
         destination_path = destination_dir / source_path.name
