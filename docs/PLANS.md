@@ -1,93 +1,67 @@
 # Plans
 
-## Phase 0: Scaffold the narrow rewrite
+## Current status
 
-Deliverables:
-- real README
-- architecture document with explicit non-goals
-- phased plan and issue breakdown
-- thin Python package and script skeleton
-- local work-dir conventions for stage artifacts
+Implemented in the repo now:
+- reading-map aware `pack`
+- durable `source_map.json` updates with explicit `sync_handoff.json`
+- documented JSON recipes for `slides`, `audio`, and `report`
+- fixture-based smoke tests for `pack -> sync -> generate -> publish`
 
-Exit criteria:
-- repo explains itself without oral history
-- a contributor can run each stage skeleton locally
+Still intentionally narrow:
+- no NotebookLM upload automation
+- no NotebookLM generation automation
+- no NotebookLM download automation
+- no generic workflow abstractions
 
 ## Phase 1: Make `pack` genuinely useful
 
-Goals:
-- read Obsidian corpus inputs deliberately
-- incorporate reading-map driven segment selection and ordering
-- improve segment identity stability across repacks
+Delivered:
+- reads an explicit reading map file
+- selects source notes from that map
+- preserves deterministic segment ordering
+- keeps `segment_id` stable from corpus-relative note paths
 
-Suggested outputs:
-- `source_pack.json` stays the single downstream handoff artifact
-- tests for Markdown discovery, title extraction, and segment ID stability
-
-Exit criteria:
-- pack output is deterministic for the same corpus snapshot
-- reading-map semantics are reflected in the pack manifest
+Remaining narrow follow-up:
+- improve segment identity only if a real corpus case proves path-based IDs insufficient
 
 ## Phase 2: Make `sync` explicit and dependable
 
-Goals:
-- support a human-in-the-loop or agent-assisted NotebookLM sync workflow
-- persist the source map cleanly
-- detect drift between local segments and recorded sync state
+Delivered:
+- supports a deliberate human-or-agent sync workflow
+- persists `source_map.json` cleanly across reruns
+- accepts partial manual source-ID updates
+- writes `sync_handoff.json` as the explicit local handoff artifact
 
-Suggested outputs:
-- source map update command(s)
-- explicit pending/synced/drifted states
-- clear manual handoff file format
-
-Exit criteria:
-- every local segment has a visible sync state
-- source identity can be resumed safely across runs
+Remaining narrow follow-up:
+- surface drift between current segment digests and synced state
 
 ## Phase 3: Make `generate` recipe-driven
 
-Goals:
-- define a small recipe format for slides, audio, and report
-- assemble generation requests from synced sources and recipes
-- make incomplete preconditions obvious
+Delivered:
+- defines a small JSON recipe format for `slides`, `audio`, and `report`
+- loads recipes from disk or defaults
+- writes `generation_request.json` with recipe metadata and sync preconditions
 
-Suggested outputs:
-- recipe loader
-- generation request manifest
-- run metadata tying requests to a source-map snapshot
-
-Exit criteria:
-- recipes are easy to inspect and edit
-- generation requests are reproducible from file-backed inputs
+Remaining narrow follow-up:
+- decide whether recipe-level output naming needs one more field beyond `name`
 
 ## Phase 4: Make `publish` operational
 
-Goals:
-- standardize the download intake folder
-- copy artifacts into stable local output folders
-- keep a publish manifest for traceability
+Delivered:
+- standardizes local output folders by artifact kind
+- copies downloaded artifacts into stable output paths
+- writes `publish_manifest.json` with published vs missing status
 
-Suggested outputs:
-- expected file naming rules per artifact type
-- publish manifest with found/missing statuses
-- smoke tests for local file movement
-
-Exit criteria:
-- outputs land in predictable local paths
-- missing artifacts are visible without reading logs
+Remaining narrow follow-up:
+- tighten naming rules only if real downloaded files require it
 
 ## Phase 5: Add guardrails, not framework
 
-Goals:
-- add focused tests around the stage boundaries
-- improve docstrings, examples, and failure modes
-- keep the repo narrow as functionality grows
+Delivered:
+- added focused tests around the stage boundaries
+- added a fixture corpus for pack/sync/generate/publish flows
+- kept test coverage at implemented behavior only
 
-Suggested outputs:
-- smoke tests for the four stages
-- fixture corpus for pack/sync/generate/publish flows
-- lightweight lint/format config only if it earns its keep
-
-Exit criteria:
-- contributors can change one stage without decoding a framework
-- agentic workflows can inspect artifacts and resume work reliably
+Remaining narrow follow-up:
+- add small failure-mode tests as real bugs appear

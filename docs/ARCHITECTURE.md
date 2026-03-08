@@ -13,16 +13,19 @@ This is a rewrite with a constrained first phase. The architecture is optimized 
 ## Core model
 
 ### Corpus
-A local Obsidian-backed collection of Markdown notes and supporting files. In phase 1, the scaffold treats the corpus as a directory of Markdown files.
+A local Obsidian-backed collection of Markdown notes and supporting files.
 
 ### Segment
-The smallest unit we care about for sync and generation. A segment is a locally identified chunk of source text with a stable `segment_id`, title, source path, and text body.
+The smallest unit we care about for sync and generation. A segment is a locally identified chunk of source text with a stable `segment_id`, title, source path, full text body, and text digest.
 
 ### Source Pack
-A local manifest of the corpus snapshot prepared for NotebookLM. It is file-backed and reproducible. In phase 1 it is written to `source_pack.json`.
+A local manifest of the corpus snapshot prepared for NotebookLM. It is file-backed, reproducible, and written to `source_pack.json`.
 
 ### Source Map
-A persisted mapping between local `segment_id` values and NotebookLM source identifiers. This is the key guardrail that keeps local and remote state aligned. In phase 1 it is written to `source_map.json`.
+A persisted mapping between local `segment_id` values and NotebookLM source identifiers. It is the guardrail that keeps local and remote state aligned. It is written to `source_map.json`.
+
+### Sync Handoff
+A file-backed summary of the current sync state. It points at the current pack and source map, lists pending versus synced segments, and repeats the expected manual update file shape. It is written to `sync_handoff.json`.
 
 ### Recipe
 A small declaration of what to generate. Recipes describe target outputs like `slides`, `audio`, or `report`. They are intentionally narrow and do not form a generic DAG or plugin system.
@@ -45,28 +48,33 @@ Responsibility:
 - assign stable local segment identifiers
 - persist a source-pack snapshot for downstream stages
 
-Phase 1 scaffold behavior:
-- scans Markdown files
-- captures file path, title, and full text
-- does not yet implement reading-map aware ordering or chunking
+Implemented behavior:
+- scans Markdown files deterministically when no reading map is provided
+- reads an ordered JSON reading map when provided
+- only packs listed Markdown files when using a reading map
+- captures file path, title, full text, tags, and text digest
+- keeps `segment_id` derived from the corpus-relative source path
 
 ### 2. Sync
 Input:
 - `source_pack.json`
-- optional manual mapping file of `segment_id -> notebooklm_source_id`
+- optional manual sync update file with `segment_id` and `notebooklm_source_id`
 
 Output:
 - `source_map.json`
+- `sync_handoff.json`
 
 Responsibility:
 - make NotebookLM sync explicit
-- persist source identity mapping
+- persist source identity mapping durably
 - surface unsynced segments clearly
 
-Phase 1 scaffold behavior:
+Implemented behavior:
 - does not automate NotebookLM upload
-- records sync state from manual handoff data
-- marks missing mappings as `pending`
+- accepts partial manual sync updates
+- preserves unchanged synced entries across reruns
+- records pending vs synced state per segment
+- persists current segment metadata alongside NotebookLM source IDs
 
 ### 3. Generate
 Input:
@@ -81,7 +89,8 @@ Responsibility:
 - keep requested artifacts explicit and file-backed
 - make unsynced preconditions visible before downstream work
 
-Phase 1 scaffold behavior:
+Implemented behavior:
+- loads recipes from defaults or a local JSON file
 - emits a generation request manifest only
 - does not call NotebookLM generation APIs or browser automation
 
@@ -99,20 +108,22 @@ Responsibility:
 - copy artifacts into stable paths for later use
 - record what was found versus missing
 
-Phase 1 scaffold behavior:
+Implemented behavior:
+- expects one file per recipe based on recipe name plus artifact extension
 - copies matching local files if present
+- records missing files without crashing
 - does not automate remote download
 
 ## Data flow
 
 ```text
-corpus/notes -> pack -> source_pack.json
-source_pack.json + explicit sync handoff -> sync -> source_map.json
-source_map.json + recipes -> generate -> generation_request.json
+corpus/notes + reading_map.json -> pack -> source_pack.json
+source_pack.json + manual sync updates -> sync -> source_map.json + sync_handoff.json
+source_map.json + recipes.json -> generate -> generation_request.json
 manual downloads + generation_request.json -> publish -> outputs/ + publish_manifest.json
 ```
 
-Each stage reads a small number of explicit inputs and writes one stable artifact. This keeps the repo easy to inspect and friendly to agentic iteration.
+Each stage reads a small number of explicit inputs and writes stable artifacts. This keeps the repo easy to inspect and friendly to agentic iteration.
 
 ## Mechanical guardrails
 
@@ -121,14 +132,15 @@ Each stage reads a small number of explicit inputs and writes one stable artifac
 - Thin IO helpers instead of framework-heavy infrastructure
 - Explicit `pending` states instead of pretending remote work succeeded
 - Script entry point that mirrors the four stages directly
+- Fixture-based smoke tests around stage boundaries
 
 ## Parse, don't validate
 
-The scaffold favors simple typed parsing of repo-owned files over deep validation layers. The working assumption is that downstream stages consume manifests produced by prior local stages. When external data enters the system, keep parsing logic near the boundary and let failures be direct and obvious.
+The pipeline favors simple typed parsing of repo-owned files over deep validation layers. When external data enters the system, keep parsing logic near the boundary and let failures be direct and obvious.
 
 ## Non-goals
 
-These are out of scope for the first phase:
+These remain out of scope for the current phase:
 - a generic workflow engine
 - background job orchestration
 - backward compatibility with any prior repo shape

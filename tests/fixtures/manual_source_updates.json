@@ -1,0 +1,16 @@
+{
+  "updates": [
+    {
+      "segment_id": "notes--applications",
+      "notebooklm_source_id": "source-applications"
+    },
+    {
+      "segment_id": "notes--foundations",
+      "notebooklm_source_id": "source-foundations"
+    },
+    {
+      "segment_id": "reference--glossary",
+      "notebooklm_source_id": "source-glossary"
+    }
+  ]
+}

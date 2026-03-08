@@ -1,0 +1,16 @@
+{
+  "segments": [
+    {
+      "source_path": "notes/applications.md",
+      "tags": ["core", "week-2"]
+    },
+    {
+      "source_path": "notes/foundations.md",
+      "tags": ["core", "week-1"]
+    },
+    {
+      "source_path": "reference/glossary.md",
+      "tags": ["reference"]
+    }
+  ]
+}

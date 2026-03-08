@@ -1,0 +1,19 @@
+{
+  "recipes": [
+    {
+      "name": "fixture-slides",
+      "artifact_kind": "slides",
+      "prompt_focus": "Teach the core sequence"
+    },
+    {
+      "name": "fixture-audio",
+      "artifact_kind": "audio",
+      "prompt_focus": "Narrate the main ideas"
+    },
+    {
+      "name": "fixture-report",
+      "artifact_kind": "report",
+      "prompt_focus": "Summarize the supporting details"
+    }
+  ]
+}
