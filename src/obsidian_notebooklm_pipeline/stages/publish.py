@@ -20,7 +20,8 @@ def run_publish(
     request = GenerationRequest.from_dict(read_json(work_dir / "generation_request.json"))
     published: list[PublishedArtifact] = []
 
-    for recipe in request.recipes:
+    for recipe_request in request.recipe_requests:
+        recipe = recipe_request.recipe
         source_path = downloads_dir / expected_artifact_name(recipe)
         destination_dir = ensure_dir(output_dir / recipe.artifact_kind)
         destination_path = destination_dir / source_path.name

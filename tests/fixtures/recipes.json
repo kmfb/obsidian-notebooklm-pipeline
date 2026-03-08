@@ -3,17 +3,27 @@
     {
       "name": "fixture-slides",
       "artifact_kind": "slides",
-      "prompt_focus": "Teach the core sequence"
+      "language": "en",
+      "focus": "Teach the core sequence",
+      "format": "presenter_slides",
+      "length": "short"
     },
     {
       "name": "fixture-audio",
       "artifact_kind": "audio",
-      "prompt_focus": "Narrate the main ideas"
+      "language": "en",
+      "focus": "Debate the implementation tradeoffs",
+      "source_ids": ["source-applications", "source-glossary"],
+      "format": "debate",
+      "length": "long"
     },
     {
       "name": "fixture-report",
       "artifact_kind": "report",
-      "prompt_focus": "Summarize the supporting details"
+      "language": "en",
+      "source_ids": ["source-foundations"],
+      "format": "Create Your Own",
+      "prompt": "Write an operator-facing roadmap report with milestones, risks, and next actions."
     }
   ]
 }

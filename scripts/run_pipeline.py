@@ -33,6 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser = subparsers.add_parser("generate")
     generate_parser.add_argument("--work-dir", type=Path, required=True)
     generate_parser.add_argument("--recipes", type=Path)
+    generate_parser.add_argument("--notebook-id")
+    generate_parser.add_argument("--profile")
+    generate_parser.add_argument("--execute", action="store_true")
 
     publish_parser = subparsers.add_parser("publish")
     publish_parser.add_argument("--work-dir", type=Path, required=True)
@@ -45,6 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     all_parser.add_argument("--reading-map", type=Path)
     all_parser.add_argument("--source-ids", type=Path)
     all_parser.add_argument("--recipes", type=Path)
+    all_parser.add_argument("--notebook-id")
+    all_parser.add_argument("--profile")
+    all_parser.add_argument("--execute-generate", action="store_true")
     all_parser.add_argument("--downloads-dir", type=Path)
     all_parser.add_argument("--output-dir", type=Path)
 
@@ -68,7 +74,15 @@ def main() -> int:
         return 0
 
     if args.command == "generate":
-        print_json(run_generate(args.work_dir, args.recipes).to_dict())
+        print_json(
+            run_generate(
+                args.work_dir,
+                args.recipes,
+                notebook_id=args.notebook_id,
+                profile=args.profile,
+                execute=args.execute,
+            ).to_dict()
+        )
         return 0
 
     if args.command == "publish":
@@ -78,7 +92,13 @@ def main() -> int:
     if args.command == "all":
         run_pack(args.corpus_dir, args.work_dir, args.reading_map)
         run_sync(args.work_dir, args.source_ids)
-        run_generate(args.work_dir, args.recipes)
+        run_generate(
+            args.work_dir,
+            args.recipes,
+            notebook_id=args.notebook_id,
+            profile=args.profile,
+            execute=args.execute_generate,
+        )
         print_json([artifact.to_dict() for artifact in run_publish(args.work_dir, args.downloads_dir, args.output_dir)])
         return 0
 

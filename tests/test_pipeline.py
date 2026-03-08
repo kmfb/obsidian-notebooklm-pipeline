@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +13,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from obsidian_notebooklm_pipeline.recipes import expected_artifact_name, load_recipes
+from obsidian_notebooklm_pipeline.stages.generate import run_generate
 from obsidian_notebooklm_pipeline.stages.pack import run_pack
 from obsidian_notebooklm_pipeline.stages.sync import run_sync
 
@@ -103,9 +103,138 @@ class PipelineStageTests(unittest.TestCase):
         recipes = load_recipes(RECIPES_PATH)
 
         self.assertEqual([recipe.artifact_kind for recipe in recipes], ["slides", "audio", "report"])
+        self.assertEqual(recipes[0].format, "presenter_slides")
+        self.assertEqual(recipes[1].source_ids, ("source-applications", "source-glossary"))
+        self.assertEqual(recipes[2].prompt, "Write an operator-facing roadmap report with milestones, risks, and next actions.")
         self.assertEqual(expected_artifact_name(recipes[0]), "fixture-slides.pdf")
         self.assertEqual(expected_artifact_name(recipes[1]), "fixture-audio.mp3")
         self.assertEqual(expected_artifact_name(recipes[2]), "fixture-report.md")
+
+    def test_generate_assembles_effective_requests_and_nlm_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir) / "work"
+            run_pack(CORPUS_DIR, work_dir, READING_MAP_PATH)
+            run_sync(work_dir, MANUAL_SOURCE_UPDATES_PATH)
+
+            stage_result = run_generate(
+                work_dir,
+                RECIPES_PATH,
+                notebook_id="notebook-123",
+                profile="team-profile",
+            )
+            generation_request = stage_result.request
+            request_payload = json.loads((work_dir / "generation_request.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(generation_request.notebook_id, "notebook-123")
+        self.assertEqual(generation_request.profile, "team-profile")
+        self.assertEqual(generation_request.synced_source_ids, [
+            "source-applications",
+            "source-foundations",
+            "source-glossary",
+        ])
+        self.assertEqual(generation_request.unsynced_segment_ids, [])
+
+        recipe_requests = {
+            request.recipe.name: request
+            for request in generation_request.recipe_requests
+        }
+        slides_request = recipe_requests["fixture-slides"]
+        self.assertEqual(slides_request.guard_status, "ready")
+        self.assertEqual(slides_request.source_ids, generation_request.synced_source_ids)
+        self.assertIn("--format", slides_request.command)
+        self.assertIn("presenter_slides", slides_request.command)
+        self.assertIn("--length", slides_request.command)
+        self.assertIn("short", slides_request.command)
+        self.assertIn("--focus", slides_request.command)
+        self.assertIn("Teach the core sequence", slides_request.command)
+        self.assertEqual(slides_request.command[:4], ["nlm", "slides", "create", "notebook-123"])
+        self.assertEqual(slides_request.command[-2:], ["--profile", "team-profile"])
+
+        audio_request = recipe_requests["fixture-audio"]
+        self.assertEqual(audio_request.source_ids, ["source-applications", "source-glossary"])
+        self.assertEqual(audio_request.source_segment_ids, ["notes--applications", "reference--glossary"])
+        self.assertIn("--source-ids", audio_request.command)
+        self.assertIn("source-applications,source-glossary", audio_request.command)
+
+        report_request = recipe_requests["fixture-report"]
+        self.assertEqual(report_request.source_paths, ["notes/foundations.md"])
+        self.assertIn("--prompt", report_request.command)
+        self.assertIn("Create Your Own", report_request.command)
+        self.assertEqual(request_payload["recipe_requests"][0]["recipe"]["name"], "fixture-slides")
+
+    def test_generate_blocks_unpinned_recipe_when_source_map_is_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir) / "work"
+            run_pack(CORPUS_DIR, work_dir, READING_MAP_PATH)
+
+            partial_updates_path = Path(temp_dir) / "partial-updates.json"
+            partial_updates_path.write_text(
+                json.dumps(
+                    {
+                        "updates": [
+                            {
+                                "segment_id": "notes--applications",
+                                "notebooklm_source_id": "source-applications",
+                            },
+                            {
+                                "segment_id": "reference--glossary",
+                                "notebooklm_source_id": "source-glossary",
+                            },
+                        ]
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            run_sync(work_dir, partial_updates_path)
+
+            generation_request = run_generate(
+                work_dir,
+                RECIPES_PATH,
+                notebook_id="notebook-123",
+            ).request
+            recipe_requests = {request.recipe.name: request for request in generation_request.recipe_requests}
+
+        self.assertEqual(generation_request.unsynced_segment_ids, ["notes--foundations"])
+        self.assertEqual(recipe_requests["fixture-slides"].guard_status, "blocked")
+        self.assertIn("pending segments", recipe_requests["fixture-slides"].blocked_reasons[0])
+        self.assertEqual(recipe_requests["fixture-audio"].guard_status, "ready")
+        self.assertEqual(recipe_requests["fixture-report"].guard_status, "blocked")
+        self.assertIn("source-foundations", recipe_requests["fixture-report"].blocked_reasons[0])
+
+    def test_guarded_generation_executes_ready_requests_with_fake_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir) / "work"
+            run_pack(CORPUS_DIR, work_dir, READING_MAP_PATH)
+            run_sync(work_dir, MANUAL_SOURCE_UPDATES_PATH)
+
+            commands: list[list[str]] = []
+
+            def fake_runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+                commands.append(command)
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=0,
+                    stdout=f"created {command[1]}",
+                    stderr="",
+                )
+
+            stage_result = run_generate(
+                work_dir,
+                RECIPES_PATH,
+                notebook_id="notebook-123",
+                execute=True,
+                runner=fake_runner,
+            )
+            generation_run = stage_result.run
+            run_payload = json.loads((work_dir / "generation_run.json").read_text(encoding="utf-8"))
+
+        self.assertIsNotNone(generation_run)
+        assert generation_run is not None
+        self.assertEqual(len(commands), 3)
+        self.assertEqual([result.status for result in generation_run.results], ["created", "created", "created"])
+        self.assertEqual(run_payload["results"][0]["stdout"], "created slides")
 
     def test_stage_smoke_flow_without_notebooklm_access(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -129,7 +258,7 @@ class PipelineStageTests(unittest.TestCase):
                 "--source-ids",
                 str(MANUAL_SOURCE_UPDATES_PATH),
             )
-            self._run_cli(
+            generate_payload = self._run_cli(
                 "generate",
                 "--work-dir",
                 str(work_dir),
@@ -155,6 +284,7 @@ class PipelineStageTests(unittest.TestCase):
             self.assertTrue((work_dir / "source_map.json").exists())
             self.assertTrue((work_dir / "sync_handoff.json").exists())
             self.assertTrue((work_dir / "generation_request.json").exists())
+            self.assertFalse((work_dir / "generation_run.json").exists())
             self.assertTrue((work_dir / "publish_manifest.json").exists())
             self.assertTrue((work_dir / "outputs" / "slides" / "fixture-slides.pdf").exists())
             self.assertTrue((work_dir / "outputs" / "audio" / "fixture-audio.mp3").exists())
@@ -168,8 +298,11 @@ class PipelineStageTests(unittest.TestCase):
         self.assertEqual(source_pack["selection_mode"], "reading_map")
         self.assertEqual(len(source_pack["segments"]), 3)
         self.assertEqual(len(source_map["entries"]), 3)
-        self.assertEqual(generation_request["recipes_path"], str(RECIPES_PATH))
+        self.assertEqual(generate_payload["request"]["recipes_path"], str(RECIPES_PATH))
+        self.assertIsNone(generate_payload["run"])
+        self.assertEqual(generate_payload["request"]["notebook_id"], None)
         self.assertEqual(generation_request["unsynced_segment_ids"], [])
+        self.assertTrue(all(item["guard_status"] == "blocked" for item in generation_request["recipe_requests"]))
         self.assertEqual([item["status"] for item in publish_manifest], ["published", "published", "published"])
 
     def _run_cli(self, *args: str) -> dict | list:
