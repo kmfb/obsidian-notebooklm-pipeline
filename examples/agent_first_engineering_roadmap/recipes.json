@@ -1,0 +1,27 @@
+{
+  "recipes": [
+    {
+      "name": "agent-roadmap-slides",
+      "artifact_kind": "slides",
+      "language": "en",
+      "focus": "Present the adoption sequence, milestones, and operating constraints for an engineering leadership review.",
+      "format": "detailed_deck",
+      "length": "default"
+    },
+    {
+      "name": "agent-roadmap-audio",
+      "artifact_kind": "audio",
+      "language": "en",
+      "focus": "Discuss the tradeoffs between platform guardrails, team enablement, and rollout speed.",
+      "format": "deep_dive",
+      "length": "long"
+    },
+    {
+      "name": "agent-roadmap-report",
+      "artifact_kind": "report",
+      "language": "en",
+      "format": "Create Your Own",
+      "prompt": "Write an engineering roadmap report with sections for context, platform guardrails, enablement plan, rollout milestones, risks, and concrete next actions."
+    }
+  ]
+}

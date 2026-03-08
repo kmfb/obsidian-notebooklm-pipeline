@@ -5,7 +5,7 @@
 Build a narrow, legible pipeline for:
 1. packing an Obsidian corpus into a Source Pack
 2. explicitly syncing segments into NotebookLM and persisting a `source_map`
-3. generating slides, audio, and report requests from recipes
+3. generating slides, audio, and report requests from recipes and, when asked, calling guarded `nlm` create commands
 4. publishing downloaded outputs back into local folders
 
 This is a rewrite with a constrained first phase. The architecture is optimized for clarity, explicit state, and easy iteration rather than broad abstraction.
@@ -28,7 +28,7 @@ A persisted mapping between local `segment_id` values and NotebookLM source iden
 A file-backed summary of the current sync state. It points at the current pack and source map, lists pending versus synced segments, and repeats the expected manual update file shape. It is written to `sync_handoff.json`.
 
 ### Recipe
-A small declaration of what to generate. Recipes describe target outputs like `slides`, `audio`, or `report`. They are intentionally narrow and do not form a generic DAG or plugin system.
+A small declaration of what to generate. Recipes describe target outputs like `slides`, `audio`, or `report`, plus only the parameters that map directly to the current NotebookLM CLI surface. They are intentionally narrow and do not form a generic DAG or plugin system.
 
 ### Run
 A single execution against a work directory. Runs are grounded in files, not in a background scheduler or workflow database.
@@ -80,19 +80,26 @@ Implemented behavior:
 Input:
 - `source_map.json`
 - recipe set
+- optional `notebook_id`
+- optional NotebookLM profile name
 
 Output:
 - `generation_request.json`
+- `generation_run.json` when guarded execution is requested
 
 Responsibility:
 - assemble recipe-driven generation intents
-- keep requested artifacts explicit and file-backed
-- make unsynced preconditions visible before downstream work
+- resolve the effective `source_ids` for each recipe
+- make guard status explicit before remote work starts
+- call concrete `nlm` commands only when the run is ready and execution is requested
 
 Implemented behavior:
 - loads recipes from defaults or a local JSON file
-- emits a generation request manifest only
-- does not call NotebookLM generation APIs or browser automation
+- records per-recipe request details, source scope, and concrete `nlm` command in `generation_request.json`
+- blocks full-corpus recipes when the source map still has pending segments
+- blocks pinned recipes when requested `source_ids` are missing from the synced source map
+- can execute `nlm slides create`, `nlm audio create`, and `nlm report create` directly through a guarded local boundary
+- records blocked, created, and failed command results in `generation_run.json`
 
 ### 4. Publish
 Input:
@@ -119,7 +126,7 @@ Implemented behavior:
 ```text
 corpus/notes + reading_map.json -> pack -> source_pack.json
 source_pack.json + manual sync updates -> sync -> source_map.json + sync_handoff.json
-source_map.json + recipes.json -> generate -> generation_request.json
+source_map.json + recipes.json -> generate -> generation_request.json -> guarded nlm create -> generation_run.json
 manual downloads + generation_request.json -> publish -> outputs/ + publish_manifest.json
 ```
 
@@ -130,9 +137,9 @@ Each stage reads a small number of explicit inputs and writes stable artifacts. 
 - Stable work-dir filenames instead of hidden state
 - Typed datamodels close to the stage logic
 - Thin IO helpers instead of framework-heavy infrastructure
-- Explicit `pending` states instead of pretending remote work succeeded
+- Explicit `pending` and `blocked` states instead of pretending remote work succeeded
 - Script entry point that mirrors the four stages directly
-- Fixture-based smoke tests around stage boundaries
+- Fixture-based smoke tests around stage boundaries and guarded CLI invocation
 
 ## Parse, don't validate
 
@@ -146,7 +153,7 @@ These remain out of scope for the current phase:
 - backward compatibility with any prior repo shape
 - `book` and `chapter` as top-level concepts
 - vendor-neutral source sync abstractions
-- fake NotebookLM automation or mock integrations that imply completeness
+- hidden NotebookLM automation that obscures which command really ran
 - large schema or plugin frameworks before the core flow is proven
 
 ## Repo legibility standard

@@ -6,11 +6,13 @@ Implemented in the repo now:
 - reading-map aware `pack`
 - durable `source_map.json` updates with explicit `sync_handoff.json`
 - documented JSON recipes for `slides`, `audio`, and `report`
-- fixture-based smoke tests for `pack -> sync -> generate -> publish`
+- guarded generation request assembly that carries recipe parameters into concrete `nlm` create commands
+- optional guarded execution that records `generation_run.json`
+- roadmap-specific example manifests for the agent-first engineering roadmap use case
+- fixture-based tests for `pack -> sync -> generate -> publish` plus guarded execution boundaries
 
 Still intentionally narrow:
 - no NotebookLM upload automation
-- no NotebookLM generation automation
 - no NotebookLM download automation
 - no generic workflow abstractions
 
@@ -36,15 +38,16 @@ Delivered:
 Remaining narrow follow-up:
 - surface drift between current segment digests and synced state
 
-## Phase 3: Make `generate` recipe-driven
+## Phase 3: Make `generate` recipe-driven and inspectable
 
 Delivered:
 - defines a small JSON recipe format for `slides`, `audio`, and `report`
-- loads recipes from disk or defaults
-- writes `generation_request.json` with recipe metadata and sync preconditions
+- resolves effective `source_ids` per recipe from the current `source_map.json`
+- writes `generation_request.json` with per-recipe guard status and concrete `nlm` commands
+- can execute guarded `nlm` create commands and persist `generation_run.json`
 
 Remaining narrow follow-up:
-- decide whether recipe-level output naming needs one more field beyond `name`
+- add drift checks before generation so stale sync state is surfaced earlier
 
 ## Phase 4: Make `publish` operational
 
@@ -60,7 +63,8 @@ Remaining narrow follow-up:
 
 Delivered:
 - added focused tests around the stage boundaries
-- added a fixture corpus for pack/sync/generate/publish flows
+- added guarded execution tests around the `nlm` invocation boundary
+- added a roadmap bundle for the current reading-map scenario
 - kept test coverage at implemented behavior only
 
 Remaining narrow follow-up:

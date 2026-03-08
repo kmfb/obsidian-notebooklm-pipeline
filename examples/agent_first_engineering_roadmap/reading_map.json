@@ -1,0 +1,28 @@
+{
+  "segments": [
+    {
+      "source_path": "roadmap/00-context/why-agent-first-now.md",
+      "tags": ["roadmap", "foundations", "context"]
+    },
+    {
+      "source_path": "roadmap/00-context/platform-guardrails.md",
+      "tags": ["roadmap", "foundations", "guardrails"]
+    },
+    {
+      "source_path": "roadmap/10-enablement/developer-workflows.md",
+      "tags": ["roadmap", "enablement", "developers"]
+    },
+    {
+      "source_path": "roadmap/10-enablement/evaluation-and-feedback.md",
+      "tags": ["roadmap", "enablement", "evaluation"]
+    },
+    {
+      "source_path": "roadmap/20-adoption/milestones-and-owners.md",
+      "tags": ["roadmap", "adoption", "milestones"]
+    },
+    {
+      "source_path": "roadmap/20-adoption/risks-and-open-questions.md",
+      "tags": ["roadmap", "adoption", "risks"]
+    }
+  ]
+}

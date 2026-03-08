@@ -1,0 +1,57 @@
+{
+  "scenario": "agent-first-engineering-roadmap",
+  "brief_path": "examples/agent_first_engineering_roadmap/roadmap_brief.md",
+  "hierarchy": [
+    {
+      "section_id": "foundations",
+      "label": "Foundations",
+      "why_it_exists": "Define the operating model, constraints, and baseline platform posture before scaling adoption.",
+      "segments": [
+        {
+          "source_path": "roadmap/00-context/why-agent-first-now.md",
+          "title_hint": "Why agent-first now",
+          "tags": ["roadmap", "foundations", "context"]
+        },
+        {
+          "source_path": "roadmap/00-context/platform-guardrails.md",
+          "title_hint": "Platform guardrails",
+          "tags": ["roadmap", "foundations", "guardrails"]
+        }
+      ]
+    },
+    {
+      "section_id": "enablement",
+      "label": "Enablement",
+      "why_it_exists": "Translate the platform posture into team workflows, evaluation loops, and onboarding materials.",
+      "segments": [
+        {
+          "source_path": "roadmap/10-enablement/developer-workflows.md",
+          "title_hint": "Developer workflows",
+          "tags": ["roadmap", "enablement", "developers"]
+        },
+        {
+          "source_path": "roadmap/10-enablement/evaluation-and-feedback.md",
+          "title_hint": "Evaluation and feedback",
+          "tags": ["roadmap", "enablement", "evaluation"]
+        }
+      ]
+    },
+    {
+      "section_id": "adoption",
+      "label": "Adoption",
+      "why_it_exists": "Make milestones, ownership, and rollout sequencing explicit for leadership and execution teams.",
+      "segments": [
+        {
+          "source_path": "roadmap/20-adoption/milestones-and-owners.md",
+          "title_hint": "Milestones and owners",
+          "tags": ["roadmap", "adoption", "milestones"]
+        },
+        {
+          "source_path": "roadmap/20-adoption/risks-and-open-questions.md",
+          "title_hint": "Risks and open questions",
+          "tags": ["roadmap", "adoption", "risks"]
+        }
+      ]
+    }
+  ]
+}
