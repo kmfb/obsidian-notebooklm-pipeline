@@ -134,13 +134,25 @@ current work-dir artifacts -> run_metadata.json
 
 Each stage reads a small number of explicit inputs and writes stable artifacts. This keeps the repo easy to inspect and friendly to agentic iteration.
 
+## Reading-map-first entry
+
+The repo also exposes a narrow `reading-map-run` entry at the CLI.
+
+It is not a fifth stage and not a generic workflow layer. It is a thin reading-map-first wrapper around the same four stages:
+- `pack` always runs from an explicit reading map
+- `sync` still writes `source_map.json` and `sync_handoff.json`
+- `generate` still writes `generation_request.json` and only crosses the remote boundary when execution is explicitly requested
+- `publish` still depends on a local downloads intake and writes `publish_manifest.json`
+
+The value of this entry is reduced command choreography, not hidden state. The important handoff files remain the source of truth.
+
 ## Mechanical guardrails
 
 - Stable work-dir filenames instead of hidden state
 - Typed datamodels close to the stage logic
 - Thin IO helpers instead of framework-heavy infrastructure
 - Explicit `pending` and `blocked` states instead of pretending remote work succeeded
-- Script entry point that mirrors the four stages directly
+- Script entry point that mirrors the four stages directly and adds a reading-map-first command that still writes the same stage artifacts
 - Fixture-based smoke tests around stage boundaries and guarded CLI invocation
 
 ## Parse, don't validate

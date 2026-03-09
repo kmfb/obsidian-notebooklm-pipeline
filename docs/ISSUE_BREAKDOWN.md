@@ -46,6 +46,13 @@ Delivered:
 - repeated publish runs stay idempotent for unchanged inputs because output filenames remain recipe-based and stable
 - `publish_manifest.json` records published, missing, or ambiguous intake clearly
 
+### 8. Add a reading-map-first one-click entry
+Delivered:
+- `reading-map-run` gives the proven reading-map flow one narrow command instead of requiring stage-by-stage command choreography
+- the command still writes the same explicit handoff files: `sync_handoff.json`, `generation_request.json`, and `publish_manifest.json` when downloads are present
+- reruns can reuse `.work/manual_source_updates.json` and `.work/downloads/` without hiding the manual NotebookLM boundaries
+- subprocess tests cover the new entry both before and after manual handoff files are present
+
 ## Remaining narrow issues
 
 No additional narrow issues are queued beyond concrete corpus-driven bugs and failure-message polish.

@@ -40,6 +40,7 @@ Implemented now:
 - `generate` resolves effective `source_ids`, carries recipe parameters into concrete `nlm` commands, blocks drifted runs before `nlm`, and writes the inspectable result to `generation_request.json`
 - `generate --execute` runs guarded `nlm <artifact> create ...` commands and records results in `generation_run.json`
 - `publish` recursively scans a local downloads intake, copies exactly one matching file per recipe into stable local folders, and records missing or ambiguous intake in `publish_manifest.json`
+- `reading-map-run` gives the reading-map-first flow a single narrow entry while still surfacing `sync_handoff.json`, `generation_request.json`, and the local downloads boundary explicitly
 - `run_metadata.json` summarizes the current pack, sync, drift, generate, and publish artifacts in one file-backed snapshot
 - fixture tests cover request assembly, guarded execution boundaries, and `pack -> sync -> generate -> publish` without live NotebookLM generation
 
@@ -51,7 +52,35 @@ Still intentionally out of scope:
 ## Quickstart
 
 1. Create a virtual environment if you want one.
-2. Run the stages directly:
+2. For a reading-map-first run, start with the single narrow entry:
+
+```bash
+python3 scripts/run_pipeline.py reading-map-run \
+  --corpus-dir /path/to/corpus \
+  --work-dir .work \
+  --reading-map /path/to/reading_map.json \
+  --recipes /path/to/recipes.json
+```
+
+This command always refreshes `source_pack.json`, `source_map.json`, `sync_handoff.json`, and `generation_request.json`.
+It also reuses two work-dir defaults on reruns when they exist:
+- `.work/manual_source_updates.json` for manual NotebookLM source IDs
+- `.work/downloads/` for downloaded NotebookLM outputs
+
+Typical reruns stay on the same command:
+
+```bash
+python3 scripts/run_pipeline.py reading-map-run \
+  --corpus-dir /path/to/corpus \
+  --work-dir .work \
+  --reading-map /path/to/reading_map.json \
+  --recipes /path/to/recipes.json \
+  --notebook-id your-notebook-id
+```
+
+Add `--execute-generate` only when you want the run to call `nlm` directly.
+
+3. Or run the stages directly when you want stage-by-stage control:
 
 ```bash
 python3 scripts/run_pipeline.py pack \
@@ -93,6 +122,19 @@ python3 scripts/run_pipeline.py all \
 ```
 
 Add `--execute-generate` to `all` only when you want the run to call `nlm` directly.
+
+## Reading-map-first entry behavior
+
+`reading-map-run` is intentionally narrow:
+- it always starts from an explicit reading map
+- it keeps the four-stage shape (`pack`, `sync`, `generate`, `publish`) intact
+- it writes the same stage artifacts as the direct commands
+- it does not hide the manual NotebookLM source-sync step or the manual download step
+
+Important still-manual boundaries:
+- review `sync_handoff.json`, sync the listed segments in NotebookLM, then write source IDs into `.work/manual_source_updates.json` or pass `--source-ids`
+- review `generation_request.json`, then add `--notebook-id` and optionally `--execute-generate` when you are ready to call `nlm`
+- download created artifacts into `.work/downloads/` or pass `--downloads-dir`, then rerun to publish them locally
 
 ## Working files
 

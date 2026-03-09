@@ -10,6 +10,7 @@ Implemented in the repo now:
 - guarded generation request assembly that carries recipe parameters into concrete `nlm` create commands and blocks drifted runs
 - optional guarded execution that records `generation_run.json`
 - recursive publish intake with missing versus ambiguous artifact reporting
+- a `reading-map-run` entry that reruns the same four stages while keeping manual source sync and local downloads explicit
 - `run_metadata.json` summaries for the current work-dir artifacts
 - roadmap-specific example manifests for the agent-first engineering roadmap use case
 - fixture-based tests for `pack -> sync -> generate -> publish` plus guarded execution boundaries
@@ -69,6 +70,7 @@ Delivered:
 - added focused tests around the stage boundaries
 - added guarded execution tests around the `nlm` invocation boundary
 - added drift detection tests and clean publish intake tests
+- added narrow CLI coverage for the reading-map-first one-command path
 - added a roadmap bundle for the current reading-map scenario
 - kept test coverage at implemented behavior only
 

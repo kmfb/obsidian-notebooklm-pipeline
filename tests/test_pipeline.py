@@ -352,6 +352,93 @@ class PipelineStageTests(unittest.TestCase):
         self.assertIsNone(publish_manifest.artifacts[0].output_path)
         self.assertEqual(len(publish_manifest.artifacts[0].intake_candidates), 2)
 
+    def test_reading_map_run_creates_explicit_handoffs_from_a_single_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir) / "work"
+
+            payload = self._run_cli(
+                "reading-map-run",
+                "--corpus-dir",
+                str(CORPUS_DIR),
+                "--work-dir",
+                str(work_dir),
+                "--reading-map",
+                str(READING_MAP_PATH),
+                "--recipes",
+                str(RECIPES_PATH),
+            )
+
+            source_map = json.loads((work_dir / "source_map.json").read_text(encoding="utf-8"))
+            generation_request = json.loads((work_dir / "generation_request.json").read_text(encoding="utf-8"))
+
+            self.assertTrue((work_dir / "source_pack.json").exists())
+            self.assertTrue((work_dir / "source_map.json").exists())
+            self.assertTrue((work_dir / "sync_handoff.json").exists())
+            self.assertTrue((work_dir / "generation_request.json").exists())
+            self.assertFalse((work_dir / "publish_manifest.json").exists())
+
+        self.assertEqual(payload["entrypoint"], "reading-map-run")
+        self.assertEqual(payload["mode"], "reading_map_first")
+        self.assertEqual(payload["artifacts"]["manual_source_updates_path"], str(work_dir / "manual_source_updates.json"))
+        self.assertEqual(payload["artifacts"]["downloads_dir"], str(work_dir / "downloads"))
+        self.assertEqual(payload["manual_boundaries"]["source_sync"]["status"], "manual_sync_required")
+        self.assertEqual(
+            payload["manual_boundaries"]["source_sync"]["pending_segment_ids"],
+            ["notes--applications", "notes--foundations", "reference--glossary"],
+        )
+        self.assertFalse(payload["manual_boundaries"]["source_sync"]["manual_source_updates_provided"])
+        self.assertEqual(payload["manual_boundaries"]["generation"]["status"], "blocked")
+        self.assertEqual(payload["manual_boundaries"]["publish"]["status"], "awaiting_downloads")
+        self.assertIn("manual_source_updates.json", payload["next_action"])
+        self.assertEqual(len(source_map["entries"]), 3)
+        self.assertEqual(generation_request["recipes_path"], str(RECIPES_PATH))
+
+    def test_reading_map_run_reuses_default_manual_paths_for_sync_and_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir) / "work"
+            default_source_ids_path = work_dir / "manual_source_updates.json"
+            default_source_ids_path.parent.mkdir(parents=True, exist_ok=True)
+            default_source_ids_path.write_text(
+                MANUAL_SOURCE_UPDATES_PATH.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
+            default_downloads_dir = work_dir / "downloads"
+            default_downloads_dir.mkdir(parents=True, exist_ok=True)
+            for recipe in load_recipes(RECIPES_PATH):
+                (default_downloads_dir / expected_artifact_name(recipe)).write_text(
+                    f"downloaded artifact for {recipe.name}\n",
+                    encoding="utf-8",
+                )
+
+            payload = self._run_cli(
+                "reading-map-run",
+                "--corpus-dir",
+                str(CORPUS_DIR),
+                "--work-dir",
+                str(work_dir),
+                "--reading-map",
+                str(READING_MAP_PATH),
+                "--recipes",
+                str(RECIPES_PATH),
+                "--notebook-id",
+                "notebook-123",
+            )
+
+            publish_manifest = json.loads((work_dir / "publish_manifest.json").read_text(encoding="utf-8"))
+
+            self.assertTrue((work_dir / "outputs" / "slides" / "fixture-slides.pdf").exists())
+            self.assertTrue((work_dir / "outputs" / "audio" / "fixture-audio.m4a").exists())
+            self.assertTrue((work_dir / "outputs" / "report" / "fixture-report.md").exists())
+
+        self.assertEqual(payload["manual_boundaries"]["source_sync"]["status"], "synced")
+        self.assertTrue(payload["manual_boundaries"]["source_sync"]["manual_source_updates_provided"])
+        self.assertEqual(payload["manual_boundaries"]["generation"]["status"], "ready_to_execute")
+        self.assertEqual(payload["manual_boundaries"]["publish"]["status"], "published")
+        self.assertEqual(payload["artifacts"]["manual_source_updates_path"], str(default_source_ids_path))
+        self.assertEqual(payload["artifacts"]["downloads_dir"], str(default_downloads_dir))
+        self.assertEqual([artifact["status"] for artifact in publish_manifest["artifacts"]], ["published", "published", "published"])
+
     def test_stage_smoke_flow_without_notebooklm_access(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir) / "work"
