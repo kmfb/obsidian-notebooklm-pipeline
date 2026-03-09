@@ -33,12 +33,14 @@ This repo is intentionally small. It does **not** try to be a generic workflow e
 
 Implemented now:
 - `pack` can read a JSON reading map, select listed Markdown notes only, and preserve deterministic segment ordering
-- `pack` writes stable `segment_id` values from corpus-relative note paths and persists per-segment text digests
+- `pack` writes stable `segment_id` values from corpus-relative note paths, persists per-segment text digests, and refreshes `source_drift.json`
 - `sync` can ingest partial manual source-ID updates, preserve unchanged synced entries, and write both `source_map.json` and `sync_handoff.json`
+- `sync` refreshes `source_drift.json` against the current pack and updates `run_metadata.json`
 - `generate` can load recipes from a documented JSON file or use defaults
-- `generate` resolves effective `source_ids`, carries recipe parameters into concrete `nlm` commands, and writes the inspectable result to `generation_request.json`
+- `generate` resolves effective `source_ids`, carries recipe parameters into concrete `nlm` commands, blocks drifted runs before `nlm`, and writes the inspectable result to `generation_request.json`
 - `generate --execute` runs guarded `nlm <artifact> create ...` commands and records results in `generation_run.json`
-- `publish` copies manually downloaded outputs into stable local folders and records the results in `publish_manifest.json`
+- `publish` recursively scans a local downloads intake, copies exactly one matching file per recipe into stable local folders, and records missing or ambiguous intake in `publish_manifest.json`
+- `run_metadata.json` summarizes the current pack, sync, drift, generate, and publish artifacts in one file-backed snapshot
 - fixture tests cover request assembly, guarded execution boundaries, and `pack -> sync -> generate -> publish` without live NotebookLM generation
 
 Still intentionally out of scope:
@@ -97,10 +99,12 @@ Add `--execute-generate` to `all` only when you want the run to call `nlm` direc
 The pipeline writes predictable files under the chosen work directory:
 - `source_pack.json`
 - `source_map.json`
+- `source_drift.json`
 - `sync_handoff.json`
 - `generation_request.json`
 - `generation_run.json` when guarded execution is requested
 - `publish_manifest.json`
+- `run_metadata.json`
 - `outputs/slides/`, `outputs/audio/`, `outputs/report/`
 
 These files are the handoff surface between local prep, explicit NotebookLM actions, and local publish intake.
@@ -226,6 +230,6 @@ python3 -m unittest discover -s tests -v
 ## Next steps
 
 The next intentionally narrow items are:
-1. surface drift between `source_pack.json` and `source_map.json` before generation
-2. tighten publish intake rules only if real download patterns force it
-3. keep improving failure messages without turning the repo into a framework
+1. improve failure messages only when a concrete corpus or intake case needs it
+2. keep the work-dir artifacts easy to inspect as real runs accumulate
+3. avoid widening the architecture beyond the current local handoff flow

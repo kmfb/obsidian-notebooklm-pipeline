@@ -5,9 +5,12 @@
 Implemented in the repo now:
 - reading-map aware `pack`
 - durable `source_map.json` updates with explicit `sync_handoff.json`
+- file-backed `source_drift.json` detection against the current source pack
 - documented JSON recipes for `slides`, `audio`, and `report`
-- guarded generation request assembly that carries recipe parameters into concrete `nlm` create commands
+- guarded generation request assembly that carries recipe parameters into concrete `nlm` create commands and blocks drifted runs
 - optional guarded execution that records `generation_run.json`
+- recursive publish intake with missing versus ambiguous artifact reporting
+- `run_metadata.json` summaries for the current work-dir artifacts
 - roadmap-specific example manifests for the agent-first engineering roadmap use case
 - fixture-based tests for `pack -> sync -> generate -> publish` plus guarded execution boundaries
 
@@ -36,25 +39,26 @@ Delivered:
 - writes `sync_handoff.json` as the explicit local handoff artifact
 
 Remaining narrow follow-up:
-- surface drift between current segment digests and synced state
+- keep drift reporting limited to current local artifacts
 
 ## Phase 3: Make `generate` recipe-driven and inspectable
 
 Delivered:
 - defines a small JSON recipe format for `slides`, `audio`, and `report`
 - resolves effective `source_ids` per recipe from the current `source_map.json`
-- writes `generation_request.json` with per-recipe guard status and concrete `nlm` commands
+- writes `generation_request.json` with per-recipe guard status, drift metadata, and concrete `nlm` commands
 - can execute guarded `nlm` create commands and persist `generation_run.json`
 
 Remaining narrow follow-up:
-- add drift checks before generation so stale sync state is surfaced earlier
+- keep generation guardrails narrow and file-backed
 
 ## Phase 4: Make `publish` operational
 
 Delivered:
 - standardizes local output folders by artifact kind
 - copies downloaded artifacts into stable output paths
-- writes `publish_manifest.json` with published vs missing status
+- writes `publish_manifest.json` with published, missing, or ambiguous intake status
+- accepts recursive local intake while keeping output filenames stable
 
 Remaining narrow follow-up:
 - tighten naming rules only if real downloaded files require it
@@ -64,6 +68,7 @@ Remaining narrow follow-up:
 Delivered:
 - added focused tests around the stage boundaries
 - added guarded execution tests around the `nlm` invocation boundary
+- added drift detection tests and clean publish intake tests
 - added a roadmap bundle for the current reading-map scenario
 - kept test coverage at implemented behavior only
 

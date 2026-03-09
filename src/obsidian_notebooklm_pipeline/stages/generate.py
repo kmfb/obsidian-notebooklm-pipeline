@@ -13,9 +13,12 @@ from ..models import (
     Recipe,
     RecipeGenerationRequest,
     RecipeGenerationResult,
+    SourceDriftReport,
     SourceMap,
+    SourcePack,
 )
 from ..recipes import load_recipes
+from ..run_state import write_run_metadata, write_source_drift_report
 
 CommandRunner = Callable[[list[str]], subprocess.CompletedProcess[str]]
 
@@ -52,11 +55,18 @@ def _build_recipe_request(
     recipe: Recipe,
     notebook_id: str | None,
     profile: str | None,
+    drift_report: SourceDriftReport,
     unsynced_segment_ids: list[str],
     synced_entries_by_source_id: dict[str, tuple[str, str]],
     all_synced_source_ids: list[str],
 ) -> RecipeGenerationRequest:
     blocked_reasons: list[str] = []
+
+    if drift_report.status == "drifted":
+        blocked_reasons.append(
+            "source_map.json no longer matches the current source_pack.json; re-run sync for segments: "
+            + ", ".join(drift_report.drifted_segment_ids)
+        )
 
     if recipe.source_ids:
         requested_source_ids = list(recipe.source_ids)
@@ -105,7 +115,9 @@ def _build_recipe_request(
 
 def _assemble_generation_request(
     work_dir: Path,
+    source_pack: SourcePack,
     source_map: SourceMap,
+    drift_report: SourceDriftReport,
     recipes: list[Recipe],
     recipes_path: Path | None,
     notebook_id: str | None,
@@ -126,10 +138,16 @@ def _assemble_generation_request(
         run_id=uuid4().hex[:12],
         created_at=now_utc(),
         corpus_id=source_map.corpus_id,
+        source_pack_path=str(work_dir / "source_pack.json"),
         source_map_path=str(work_dir / "source_map.json"),
+        source_pack_generated_at=source_pack.generated_at,
+        source_map_updated_at=source_map.updated_at,
+        source_drift_path=str(work_dir / "source_drift.json"),
+        source_drift_status=drift_report.status,
         recipes_path=str(recipes_path) if recipes_path else None,
         notebook_id=notebook_id,
         profile=profile,
+        drifted_segment_ids=list(drift_report.drifted_segment_ids),
         unsynced_segment_ids=unsynced_segment_ids,
         synced_source_ids=all_synced_source_ids,
         recipe_requests=[
@@ -137,6 +155,7 @@ def _assemble_generation_request(
                 recipe=recipe,
                 notebook_id=notebook_id,
                 profile=profile,
+                drift_report=drift_report,
                 unsynced_segment_ids=unsynced_segment_ids,
                 synced_entries_by_source_id=synced_entries_by_source_id,
                 all_synced_source_ids=all_synced_source_ids,
@@ -206,11 +225,15 @@ def run_generate(
     runner: CommandRunner | None = None,
 ) -> GenerateStageResult:
     """Create a file-backed generation request and optionally run guarded nlm commands."""
+    source_pack = SourcePack.from_dict(read_json(work_dir / "source_pack.json"))
     source_map = SourceMap.from_dict(read_json(work_dir / "source_map.json"))
+    drift_report = write_source_drift_report(work_dir, source_pack=source_pack, source_map=source_map)
     recipes = load_recipes(recipes_path)
     generation_request = _assemble_generation_request(
         work_dir=work_dir,
+        source_pack=source_pack,
         source_map=source_map,
+        drift_report=drift_report,
         recipes=recipes,
         recipes_path=recipes_path,
         notebook_id=notebook_id,
@@ -219,4 +242,5 @@ def run_generate(
     write_json(work_dir / "generation_request.json", generation_request.to_dict())
 
     generation_run = run_guarded_generation(work_dir, runner=runner) if execute else None
+    write_run_metadata(work_dir)
     return GenerateStageResult(request=generation_request, run=generation_run)

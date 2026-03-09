@@ -98,6 +98,7 @@ Implemented behavior:
 - records per-recipe request details, source scope, and concrete `nlm` command in `generation_request.json`
 - blocks full-corpus recipes when the source map still has pending segments
 - blocks pinned recipes when requested `source_ids` are missing from the synced source map
+- blocks all recipes when `source_map.json` has drifted from the current `source_pack.json`
 - can execute `nlm slides create`, `nlm audio create`, and `nlm report create` directly through a guarded local boundary
 - records blocked, created, and failed command results in `generation_run.json`
 
@@ -116,18 +117,19 @@ Responsibility:
 - record what was found versus missing
 
 Implemented behavior:
-- expects one file per recipe based on recipe name plus artifact extension
-- copies matching local files if present
-- records missing files without crashing
+- scans the downloads intake recursively for the expected stable filename per recipe
+- copies exactly one matching local file if present
+- records missing or ambiguous intake without crashing
 - does not automate remote download
 
 ## Data flow
 
 ```text
 corpus/notes + reading_map.json -> pack -> source_pack.json
-source_pack.json + manual sync updates -> sync -> source_map.json + sync_handoff.json
+source_pack.json + manual sync updates -> sync -> source_map.json + sync_handoff.json + source_drift.json
 source_map.json + recipes.json -> generate -> generation_request.json -> guarded nlm create -> generation_run.json
 manual downloads + generation_request.json -> publish -> outputs/ + publish_manifest.json
+current work-dir artifacts -> run_metadata.json
 ```
 
 Each stage reads a small number of explicit inputs and writes stable artifacts. This keeps the repo easy to inspect and friendly to agentic iteration.

@@ -6,7 +6,8 @@ from typing import Literal
 ArtifactKind = Literal["slides", "audio", "report"]
 PackSelectionMode = Literal["scan", "reading_map"]
 SyncStatus = Literal["pending", "synced"]
-PublishStatus = Literal["missing", "published"]
+PublishStatus = Literal["missing", "published", "ambiguous"]
+DriftStatus = Literal["clean", "drifted", "source_map_missing"]
 GenerationGuardStatus = Literal["ready", "blocked"]
 GenerationExecutionStatus = Literal["blocked", "created", "failed"]
 
@@ -90,6 +91,65 @@ class SourceMap:
 
 
 @dataclass(frozen=True)
+class SegmentReference:
+    segment_id: str
+    source_path: str
+    title: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class DriftedSegment:
+    segment_id: str
+    source_path: str
+    title: str
+    reasons: tuple[str, ...]
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class SourceDriftReport:
+    status: DriftStatus
+    checked_at: str
+    source_pack_path: str
+    source_map_path: str
+    changed_segments: list[DriftedSegment] = field(default_factory=list)
+    missing_segments: list[SegmentReference] = field(default_factory=list)
+    extra_segments: list[SegmentReference] = field(default_factory=list)
+    drifted_segment_ids: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "status": self.status,
+            "checked_at": self.checked_at,
+            "source_pack_path": self.source_pack_path,
+            "source_map_path": self.source_map_path,
+            "has_drift": self.status == "drifted",
+            "changed_segments": [segment.to_dict() for segment in self.changed_segments],
+            "missing_segments": [segment.to_dict() for segment in self.missing_segments],
+            "extra_segments": [segment.to_dict() for segment in self.extra_segments],
+            "drifted_segment_ids": list(self.drifted_segment_ids),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SourceDriftReport":
+        return cls(
+            status=data["status"],
+            checked_at=data["checked_at"],
+            source_pack_path=data["source_pack_path"],
+            source_map_path=data["source_map_path"],
+            changed_segments=[DriftedSegment(**segment) for segment in data.get("changed_segments", [])],
+            missing_segments=[SegmentReference(**segment) for segment in data.get("missing_segments", [])],
+            extra_segments=[SegmentReference(**segment) for segment in data.get("extra_segments", [])],
+            drifted_segment_ids=list(data.get("drifted_segment_ids", [])),
+        )
+
+
+@dataclass(frozen=True)
 class Recipe:
     name: str
     artifact_kind: ArtifactKind
@@ -156,10 +216,16 @@ class GenerationRequest:
     run_id: str
     created_at: str
     corpus_id: str
+    source_pack_path: str
     source_map_path: str
+    source_pack_generated_at: str
+    source_map_updated_at: str
+    source_drift_path: str
+    source_drift_status: DriftStatus
     recipes_path: str | None = None
     notebook_id: str | None = None
     profile: str | None = None
+    drifted_segment_ids: list[str] = field(default_factory=list)
     unsynced_segment_ids: list[str] = field(default_factory=list)
     synced_source_ids: list[str] = field(default_factory=list)
     recipe_requests: list[RecipeGenerationRequest] = field(default_factory=list)
@@ -169,10 +235,16 @@ class GenerationRequest:
             "run_id": self.run_id,
             "created_at": self.created_at,
             "corpus_id": self.corpus_id,
+            "source_pack_path": self.source_pack_path,
             "source_map_path": self.source_map_path,
+            "source_pack_generated_at": self.source_pack_generated_at,
+            "source_map_updated_at": self.source_map_updated_at,
+            "source_drift_path": self.source_drift_path,
+            "source_drift_status": self.source_drift_status,
             "recipes_path": self.recipes_path,
             "notebook_id": self.notebook_id,
             "profile": self.profile,
+            "drifted_segment_ids": list(self.drifted_segment_ids),
             "unsynced_segment_ids": list(self.unsynced_segment_ids),
             "synced_source_ids": list(self.synced_source_ids),
             "recipe_requests": [request.to_dict() for request in self.recipe_requests],
@@ -184,10 +256,16 @@ class GenerationRequest:
             run_id=data["run_id"],
             created_at=data["created_at"],
             corpus_id=data["corpus_id"],
+            source_pack_path=data["source_pack_path"],
             source_map_path=data["source_map_path"],
+            source_pack_generated_at=data["source_pack_generated_at"],
+            source_map_updated_at=data["source_map_updated_at"],
+            source_drift_path=data["source_drift_path"],
+            source_drift_status=data["source_drift_status"],
             recipes_path=data.get("recipes_path"),
             notebook_id=data.get("notebook_id"),
             profile=data.get("profile"),
+            drifted_segment_ids=list(data.get("drifted_segment_ids", [])),
             unsynced_segment_ids=list(data.get("unsynced_segment_ids", [])),
             synced_source_ids=list(data.get("synced_source_ids", [])),
             recipe_requests=[
@@ -267,6 +345,35 @@ class PublishedArtifact:
     source_path: str | None
     output_path: str | None
     status: PublishStatus
+    intake_candidates: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+@dataclass
+class PublishManifest:
+    published_at: str
+    generation_request_path: str
+    downloads_dir: str
+    output_dir: str
+    artifacts: list[PublishedArtifact]
+
+    def to_dict(self) -> dict:
+        return {
+            "published_at": self.published_at,
+            "generation_request_path": self.generation_request_path,
+            "downloads_dir": self.downloads_dir,
+            "output_dir": self.output_dir,
+            "artifacts": [artifact.to_dict() for artifact in self.artifacts],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PublishManifest":
+        return cls(
+            published_at=data["published_at"],
+            generation_request_path=data["generation_request_path"],
+            downloads_dir=data["downloads_dir"],
+            output_dir=data["output_dir"],
+            artifacts=[PublishedArtifact(**artifact) for artifact in data.get("artifacts", [])],
+        )

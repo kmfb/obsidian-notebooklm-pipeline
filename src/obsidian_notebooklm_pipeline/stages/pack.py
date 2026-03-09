@@ -14,6 +14,7 @@ from ..io import (
     write_json,
 )
 from ..models import Segment, SourcePack
+from ..run_state import write_run_metadata, write_source_drift_report
 
 
 @dataclass(frozen=True)
@@ -100,4 +101,6 @@ def run_pack(corpus_dir: Path, work_dir: Path, reading_map_path: Path | None = N
         segments=segments,
     )
     write_json(work_dir / "source_pack.json", source_pack.to_dict())
+    write_source_drift_report(work_dir, source_pack=source_pack)
+    write_run_metadata(work_dir)
     return source_pack

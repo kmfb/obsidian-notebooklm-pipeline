@@ -34,22 +34,18 @@ Delivered:
 - `source_index.json` makes scenario hierarchy explicit without checking raw article text into the repo
 - repo-local `reading_map.json`, `recipes.json`, and sync template files anchor the current use case
 
-## Remaining narrow issues
-
 ### 6. Add run metadata and drift detection
-Goal:
-- make it easier to reason about what a given set of artifacts came from
-
-Next narrow scope:
-- detect when `source_map.json` no longer matches the current `source_pack.json`
-- surface drift before generation
-- explain recovery steps in docs without widening the architecture
+Delivered:
+- `source_drift.json` detects when the current `source_pack.json` no longer matches `source_map.json`
+- `generate` surfaces drift before any guarded `nlm` execution and points recovery back to `sync`
+- `run_metadata.json` summarizes the current pack, sync, drift, generate, and publish artifacts in one inspectable file
 
 ### 7. Tighten publish intake only if real downloads require it
-Goal:
-- turn publish into a predictable local file movement step
+Delivered:
+- `publish` scans the downloads intake recursively for the expected stable filename per recipe
+- repeated publish runs stay idempotent for unchanged inputs because output filenames remain recipe-based and stable
+- `publish_manifest.json` records published, missing, or ambiguous intake clearly
 
-Next narrow scope:
-- refine expected filenames only if real download patterns force it
-- keep repeated publish runs idempotent for unchanged inputs
-- record found versus missing artifacts clearly
+## Remaining narrow issues
+
+No additional narrow issues are queued beyond concrete corpus-driven bugs and failure-message polish.

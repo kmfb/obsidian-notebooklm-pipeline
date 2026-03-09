@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ..io import now_utc, read_json, write_json
 from ..models import SourceMap, SourceMapEntry, SourcePack
+from ..run_state import write_run_metadata, write_source_drift_report
 
 
 @dataclass(frozen=True)
@@ -162,4 +163,6 @@ def run_sync(work_dir: Path, source_ids_path: Path | None = None) -> SourceMap:
     )
     write_json(source_map_path, source_map.to_dict())
     _write_sync_handoff(work_dir, source_pack_path, source_ids_path, source_map)
+    write_source_drift_report(work_dir, source_pack=source_pack, source_map=source_map)
+    write_run_metadata(work_dir)
     return source_map

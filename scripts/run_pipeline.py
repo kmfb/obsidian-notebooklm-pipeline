@@ -86,7 +86,7 @@ def main() -> int:
         return 0
 
     if args.command == "publish":
-        print_json([artifact.to_dict() for artifact in run_publish(args.work_dir, args.downloads_dir, args.output_dir)])
+        print_json(run_publish(args.work_dir, args.downloads_dir, args.output_dir).to_dict())
         return 0
 
     if args.command == "all":
@@ -99,7 +99,7 @@ def main() -> int:
             profile=args.profile,
             execute=args.execute_generate,
         )
-        print_json([artifact.to_dict() for artifact in run_publish(args.work_dir, args.downloads_dir, args.output_dir)])
+        print_json(run_publish(args.work_dir, args.downloads_dir, args.output_dir).to_dict())
         return 0
 
     parser.error(f"Unknown command: {args.command}")
