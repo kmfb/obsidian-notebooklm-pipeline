@@ -38,7 +38,7 @@ DEFAULT_RECIPES: list[Recipe] = [
 
 ARTIFACT_EXTENSIONS = {
     "slides": ".pdf",
-    "audio": ".mp3",
+    "audio": ".m4a",
     "report": ".md",
 }
 

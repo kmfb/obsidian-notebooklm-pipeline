@@ -109,7 +109,7 @@ class PipelineStageTests(unittest.TestCase):
         self.assertEqual(recipes[1].source_ids, ("source-applications", "source-glossary"))
         self.assertEqual(recipes[2].prompt, "Write an operator-facing roadmap report with milestones, risks, and next actions.")
         self.assertEqual(expected_artifact_name(recipes[0]), "fixture-slides.pdf")
-        self.assertEqual(expected_artifact_name(recipes[1]), "fixture-audio.mp3")
+        self.assertEqual(expected_artifact_name(recipes[1]), "fixture-audio.m4a")
         self.assertEqual(expected_artifact_name(recipes[2]), "fixture-report.md")
 
     def test_generate_assembles_effective_requests_and_nlm_commands(self) -> None:
@@ -405,7 +405,7 @@ class PipelineStageTests(unittest.TestCase):
             self.assertTrue((work_dir / "source_drift.json").exists())
             self.assertTrue((work_dir / "run_metadata.json").exists())
             self.assertTrue((work_dir / "outputs" / "slides" / "fixture-slides.pdf").exists())
-            self.assertTrue((work_dir / "outputs" / "audio" / "fixture-audio.mp3").exists())
+            self.assertTrue((work_dir / "outputs" / "audio" / "fixture-audio.m4a").exists())
             self.assertTrue((work_dir / "outputs" / "report" / "fixture-report.md").exists())
 
             source_pack = json.loads((work_dir / "source_pack.json").read_text(encoding="utf-8"))
